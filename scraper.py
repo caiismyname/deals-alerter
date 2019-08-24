@@ -2,10 +2,11 @@ import feedparser
 from datetime import datetime
 from datetime import timedelta
 from time import mktime
+import json
 
-kinja_url = "https://kinjadeals.theinventory.com/rss"
-target_keywords = ["itunes", "gummy", "burrow"]
 last_lookup = datetime.now() - timedelta(hours=5) #last lookup was 5 hours ago 
+urls = []
+target_keywords = []
 
 class Deal:
 	def __init__(self, keyword, title, link):
@@ -22,7 +23,11 @@ class Deal:
 	def getKeyword(self):
 		return self.keyword
 
+#
+#
 # Helper functions
+#
+#
 
 # Returns t/f for if given date is after lookup
 def isValidDate(date):
@@ -41,8 +46,24 @@ def compareDeal(deal_text):
 
 	return matches
 
+#
+#
+# Core logic
+#
+#
+
+def initEnvironment():
+	global urls
+	global target_keywords
+	
+	config_json_path = "./config.json"
+	with open(config_json_path) as f:
+		config_info = json.load(f)
+		urls = config_info["urls"]
+		target_keywords = config_info["target_keywords"]					
+		
 def parseKinja():
-	feed = feedparser.parse(kinja_url)
+	feed = feedparser.parse(urls["kinja"])
 	new_items = list(filter(lambda x: isValidDate(timestampToDatetime(x["published_parsed"])), feed["items"]))
 	print("Kinja has %s new posts" % len(new_items))
 
@@ -58,5 +79,5 @@ def parseKinja():
 	
 	return relevant_deals
 
-
+initEnvironment()
 parseKinja()
