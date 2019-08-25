@@ -1,6 +1,9 @@
-{
+{	
 	"urls": {
 		"kinja": "https://kinjadeals.theinventory.com/rss"
 	},
-	"target_keywords":  ["itunes", "gummy", "burrow"]
+	"twitter_handles": {
+		"wirecutter": "WirecutterDeals"
+	},
+	"target_keywords":  ["itunes", "gummy", "burrow", "august"]
 }
