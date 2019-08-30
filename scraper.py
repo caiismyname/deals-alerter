@@ -6,6 +6,8 @@ import json
 import twitter # for reading deals off wirecutter's twitter, since they don't have an RSS
 import os # for getting env. vas for twitter 
 from dotenv import load_dotenv, find_dotenv # for env. vars for twitter
+import smtplib # for sending emails
+from collections import defaultdict
 
 last_refresh = datetime.now() - timedelta(hours=5) #last lookup was 5 hours ago 
 config = {}
@@ -59,6 +61,16 @@ def logFoundDeals(found_deals, provider):
 	else:
 		print("%s has no matches" % provider)
 	
+def mergeDictionaries(dicts):
+	merged = defaultdict(list)
+	for d in dicts:
+		for k, v in d.items():
+			merged[k] += v
+	return merged
+
+def removeNonASCII(given):
+	return "".join(filter(lambda char: ord(char) >= 0 and ord(char) <= 127, given))
+
 #
 #
 # Core logic
@@ -77,20 +89,22 @@ def initEnvironment():
 		config = json.load(f)
 		
 # Scrape Kinja's RSS feed for their new deals
+# Return format: dictionary of {keyword: [Deal_objects]}
 def parseKinja():
 	feed = feedparser.parse(config["urls"]["kinja"])
 	new_items = list(filter(lambda x: isValidDate(timestampToDatetime(x["published_parsed"])), feed["items"]))
 	print("Kinja has %d new posts" % len(new_items))
 
-	relevant_deals = {}
+	relevant_deals = defaultdict(list)
 	for item in new_items:
 		for matched_word in compareDeal(item["title"] + item["description"]):
-			relevant_deals[matched_word] = Deal(matched_word, item["title"], item["link"])
+			relevant_deals[matched_word].append(Deal(matched_word, item["title"], item["link"]))
 
 	logFoundDeals(relevant_deals, "Kinja")
 	return relevant_deals
 
 # Wirecutter doesn't have an RSS for deals, so we're gonna scrape their Twitter instead
+# Return format: dictionary of {keyword: [Deal_objects]}
 def parseWirecutter():
 	twitter_api = twitter.Api(consumer_key=os.environ.get("twitter_consumer_key"),
 		consumer_secret=os.environ.get("twitter_consumer_secret"),
@@ -102,15 +116,59 @@ def parseWirecutter():
 	new_items = list(filter(lambda x: isValidDate(twitterStringToDatetime(x["created_at"])), posts))
 	print("Wirecutter has %d new posts" % len(new_items))
 	
-	relevant_deals = {}
+	relevant_deals = defaultdict(list)
 	for item in new_items:
 		for matched_word in compareDeal(item["text"]):
-			relevant_deals[matched_word] = Deal(matched_word, item["text"], item["urls"][0])
+			# The twitter lib. returns urls as a list of dicts, hence the [0]["url"]
+			relevant_deals[matched_word].append(Deal(matched_word, item["text"], item["urls"][0]["url"]))
 
 	logFoundDeals(relevant_deals, "Wirecutter")
 	return relevant_deals
-	
 
-initEnvironment()
-parseWirecutter()
-parseKinja()
+# input deals: dict of {keyword: [deals]}
+def createEmail(deals):
+	sent_from = config["email"]["sender"] 
+	to = ", ".join(config["email"]["recipients"])
+	# content type header so email is HTML so I can embed links
+	content_type = "text/html"
+	subject = "Deals Alerter Found %d Deals For You!" % (len(deals))
+	body = ""
+	body_template = "\t- <a href=\"%s\">%s</a>\n"
+
+	for keyword, deal_list in deals.items():
+		body += "Deals found for [%s]:<br>" % keyword
+		for deal in deal_list:
+			body += body_template % (deal.getLink(), deal.getTitle())
+		body += "<br><br>"
+	body = "<p>" + body + "</p>"
+	# smtplib requires the whole email encoded into one string
+	message = """From: %s\r\nTo: %s\r\nContent-Type: %s\r\nSubject: %s\r\n\r\n%s""" % (sent_from, to, content_type, subject, body)
+	message = removeNonASCII(message)
+	return message
+
+def notify(deals):
+	if deals:
+		try:
+			email_server = smtplib.SMTP("smtp.gmail.com:587")
+			email_server.ehlo()
+			email_server.starttls()	
+			email_server.login(config["email"]["sender"], os.environ.get("gmail_app_password"))
+			message = createEmail(deals)
+			email_status = email_server.sendmail(config["email"]["sender"], config["email"]["recipients"], message)	
+
+			if email_status:
+				print("Email Status: %s" % email_status)
+			else:
+				print("Email with %d deals sent succesfully to %s" % (len(deals.keys()), config["email"]["recipients"]))
+			email_server.quit()
+		except Exception as e:
+			print("Email server error: %s" % e)		
+def main():
+	initEnvironment()
+	
+	kinja_results = parseKinja()
+	wirecutter_results = parseWirecutter()
+	all_deals = mergeDictionaries([kinja_results, wirecutter_results]) 
+	notify(all_deals)	
+
+main()
