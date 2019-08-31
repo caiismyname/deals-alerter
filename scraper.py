@@ -9,9 +9,7 @@ from dotenv import load_dotenv, find_dotenv # for env. vars for twitter
 import smtplib # for sending emails
 from collections import defaultdict
 
-last_refresh = datetime.now() 
 config = {}
-verbose = False
 
 class Deal:
 	def __init__(self, keyword, title, link):
@@ -41,7 +39,7 @@ def log(message):
 		message = timestamp + message + "\n"
 		f.write(message)
 		f.close()	
-		if verbose:
+		if config["verbose"]:
 			print(message)		
 
 
