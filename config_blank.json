@@ -9,7 +9,8 @@
 	"email": {
 		"recipients": ["example@email.com"],
 		"sender": "example@email.com"
+	},
+	"schedule": {
+		"interval": 1
 	}
-	
-	
 }

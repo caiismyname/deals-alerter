@@ -9,7 +9,7 @@ from dotenv import load_dotenv, find_dotenv # for env. vars for twitter
 import smtplib # for sending emails
 from collections import defaultdict
 
-last_refresh = datetime.now() - timedelta(hours=5) #last lookup was 5 hours ago 
+last_refresh = datetime.now() 
 config = {}
 
 class Deal:
@@ -35,6 +35,8 @@ class Deal:
 
 # Returns t/f for if given date is after last refresh
 def isValidDate(date):
+	# 'interval' is how many hours are between each refresh
+	last_refresh = datetime.now() - timedelta(hours=config["schedule"]["interval"]) 
 	return last_refresh < date
 
 def timestampToDatetime(stamp):
@@ -79,7 +81,6 @@ def removeNonASCII(given):
 
 def initEnvironment():
 	global config
-	
 	# Load env for enviornment variables for Twitter API
 	load_dotenv(find_dotenv())
 	
@@ -87,7 +88,7 @@ def initEnvironment():
 	config_json_path = "./config.json"
 	with open(config_json_path) as f:
 		config = json.load(f)
-		
+	
 # Scrape Kinja's RSS feed for their new deals
 # Return format: dictionary of {keyword: [Deal_objects]}
 def parseKinja():
@@ -163,6 +164,9 @@ def notify(deals):
 			email_server.quit()
 		except Exception as e:
 			print("Email server error: %s" % e)		
+	else:
+		print("No matches, so not sending email")
+
 def main():
 	initEnvironment()
 	
