@@ -4,7 +4,7 @@ from datetime import timedelta
 from time import mktime
 import json 
 import twitter # for reading deals off wirecutter's twitter, since they don't have an RSS
-import os # for getting env. vas for twitter 
+import os # for getting env. vars for twitter 
 from dotenv import load_dotenv, find_dotenv # for env. vars for twitter
 import smtplib # for sending emails
 from collections import defaultdict

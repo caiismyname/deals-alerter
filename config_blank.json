@@ -1,0 +1,15 @@
+{	
+	"urls": {
+		"kinja": "https://kinjadeals.theinventory.com/rss"
+	},
+	"twitter_handles": {
+		"wirecutter": "WirecutterDeals"
+	},
+	"target_keywords":[],
+	"email": {
+		"recipients": ["example@email.com"],
+		"sender": "example@email.com"
+	}
+	
+	
+}
