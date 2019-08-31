@@ -1,3 +1,5 @@
+config.json
+run.sh
 .env
 *.log
 *.swp
