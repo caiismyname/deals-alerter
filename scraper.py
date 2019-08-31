@@ -11,6 +11,7 @@ from collections import defaultdict
 
 last_refresh = datetime.now() 
 config = {}
+verbose = False
 
 class Deal:
 	def __init__(self, keyword, title, link):
@@ -32,6 +33,17 @@ class Deal:
 # Helper functions
 #
 #
+
+def log(message):
+	date_format = "%d-%m-%Y %H:%M:%S"
+	timestamp = "[" + datetime.now().strftime(date_format) + "] "
+	with open("deals_alerter_log.log", "a+") as f:
+		message = timestamp + message + "\n"
+		f.write(message)
+		f.close()	
+		if verbose:
+			print(message)		
+
 
 # Returns t/f for if given date is after last refresh
 def isValidDate(date):
@@ -59,9 +71,9 @@ def compareDeal(deal_text):
 # Modularizing repeated logging code
 def logFoundDeals(found_deals, provider):
 	if found_deals:
-		print("%s has %d matches, for " % (provider, len(found_deals.keys())), list(found_deals.keys()))	
+		log("%s has %d matches, for " % (provider, len(found_deals.keys())), list(found_deals.keys()))	
 	else:
-		print("%s has no matches" % provider)
+		log("%s has no matches" % provider)
 	
 def mergeDictionaries(dicts):
 	merged = defaultdict(list)
@@ -94,7 +106,7 @@ def initEnvironment():
 def parseKinja():
 	feed = feedparser.parse(config["urls"]["kinja"])
 	new_items = list(filter(lambda x: isValidDate(timestampToDatetime(x["published_parsed"])), feed["items"]))
-	print("Kinja has %d new posts" % len(new_items))
+	log("Kinja has %d new posts" % len(new_items))
 
 	relevant_deals = defaultdict(list)
 	for item in new_items:
@@ -115,7 +127,7 @@ def parseWirecutter():
 	feed = twitter_api.GetUserTimeline(screen_name=config["twitter_handles"]["wirecutter"])
 	posts = [item.AsDict() for item in feed]
 	new_items = list(filter(lambda x: isValidDate(twitterStringToDatetime(x["created_at"])), posts))
-	print("Wirecutter has %d new posts" % len(new_items))
+	log("Wirecutter has %d new posts" % len(new_items))
 	
 	relevant_deals = defaultdict(list)
 	for item in new_items:
@@ -158,14 +170,14 @@ def notify(deals):
 			email_status = email_server.sendmail(config["email"]["sender"], config["email"]["recipients"], message)	
 
 			if email_status:
-				print("Email Status: %s" % email_status)
+				log("Email Status: %s" % email_status)
 			else:
-				print("Email with %d deals sent succesfully to %s" % (len(deals.keys()), config["email"]["recipients"]))
+				log("Email with %d deals sent succesfully to %s" % (len(deals.keys()), config["email"]["recipients"]))
 			email_server.quit()
 		except Exception as e:
-			print("Email server error: %s" % e)		
+			log("Email server error: %s" % e)		
 	else:
-		print("No matches, so not sending email")
+		log("No matches, so not sending email")
 
 def main():
 	initEnvironment()
