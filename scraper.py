@@ -69,7 +69,7 @@ def compareDeal(deal_text):
 # Modularizing repeated logging code
 def logFoundDeals(found_deals, provider):
 	if found_deals:
-		log("%s has %d matches, for " % (provider, len(found_deals.keys())), list(found_deals.keys()))	
+		log("%s has %d matches, for %s" % (provider, len(found_deals.keys()), list(found_deals.keys())))	
 	else:
 		log("%s has no matches" % provider)
 	
