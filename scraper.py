@@ -57,13 +57,20 @@ def timestampToDatetime(stamp):
 def twitterStringToDatetime(given):
 	return datetime.strptime(given, "%a %b %d %H:%M:%S %z %Y").replace(tzinfo=None)
 
+def removePunctuation(text):
+	punctuation = [".", ",", "!", "?", "-", "_", "@", "#", "$", "%", "&"] 
+	for mark in punctuation:
+		text = text.replace(mark, "")	
+	return text
+
 # Returns list of keywords that are matches
 def compareDeal(deal_text):
+	# split given text into list of words so substrings don't trigger matches (e.g. keyword: oven --> text: woven)
+	split_text = list(map(lambda word: word.lower(), map(removePunctuation, deal_text.split(" ")))) # cast to list so you can do "foo in bar" lookups
 	matches = []
 	for keyword in config["target_keywords"]:
-		if keyword in deal_text.lower():
+		if keyword in split_text:
 			matches.append(keyword)
-
 	return matches
 
 # Modularizing repeated logging code
