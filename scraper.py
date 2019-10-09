@@ -1,4 +1,5 @@
 import feedparser
+from datetime import timezone
 from datetime import datetime
 from datetime import timedelta
 from time import mktime
@@ -46,16 +47,19 @@ def log(message):
 # Returns t/f for if given date is after last refresh
 def isValidDate(date):
 	# 'interval' is how many hours are between each refresh
-	last_refresh = datetime.now() - timedelta(hours=config["schedule"]["interval"]) 
+	last_refresh = datetime.now(timezone.utc) - timedelta(hours=config["schedule"]["interval"]) 
 	return last_refresh < date
 
-def timestampToDatetime(stamp):
-	return datetime.fromtimestamp(mktime(stamp))
+def utcTimestampToDatetime(stamp):
+	# Second half is to offset for DST since DST info is lost in mktime conversion
+	# timetuple().tm_isdst returns 0 if not DST, 1 if it is DST for the given timezone associated with datetime.now()
+	return datetime.fromtimestamp(mktime(stamp)).replace(tzinfo=timezone.utc) + timedelta(hours = datetime.now().timetuple().tm_isdst)
 
 # Specific to twitter's date format: Sun Aug 25 15:23:24 +0000 2019
 # Removes timezone info for compatibility with datetime.now()
 def twitterStringToDatetime(given):
-	return datetime.strptime(given, "%a %b %d %H:%M:%S %z %Y").replace(tzinfo=None)
+	# Twitter time is in UTC already
+	return datetime.strptime(given, "%a %b %d %H:%M:%S %z %Y")
 
 def removePunctuation(text):
 	punctuation = [".", ",", "!", "?", "-", "_", "@", "#", "$", "%", "&"] 
@@ -110,7 +114,7 @@ def initEnvironment():
 # Return format: dictionary of {keyword: [Deal_objects]}
 def parseKinja():
 	feed = feedparser.parse(config["urls"]["kinja"])
-	new_items = list(filter(lambda x: isValidDate(timestampToDatetime(x["published_parsed"])), feed["items"]))
+	new_items = list(filter(lambda x: isValidDate(utcTimestampToDatetime(x["published_parsed"])), feed["items"]))
 	log("Kinja has %d new posts" % len(new_items))
 
 	relevant_deals = defaultdict(list)
