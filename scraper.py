@@ -62,7 +62,8 @@ def twitterStringToDatetime(given):
 	return datetime.strptime(given, "%a %b %d %H:%M:%S %z %Y")
 
 def removePunctuation(text):
-	punctuation = [".", ",", "!", "?", "-", "_", "@", "#", "$", "%", "&"] 
+	# Removing : and ; b/c of canoncial post formatting in r/OutlierMarket
+	punctuation = [".", ",", "!", "?", "-", "_", "@", "#", "$", "%", "&", ":", ";"] 
 	for mark in punctuation:
 		text = text.replace(mark, "")	
 	return text
@@ -72,9 +73,17 @@ def compareDeal(deal_text):
 	# split given text into list of words so substrings don't trigger matches (e.g. keyword: oven --> text: woven)
 	split_text = list(map(lambda word: word.lower(), map(removePunctuation, deal_text.split(" ")))) # cast to list so you can do "foo in bar" lookups
 	matches = []
-	for keyword in config["target_keywords"]:
-		if keyword in split_text:
-			matches.append(keyword)
+	for keyword_group in config["target_keywords"]:
+		if type(keyword_group) is not list:
+			raise TypeError("target_keywords should be lists of keywords")
+
+		all_match = True
+		for keyword in keyword_group:
+			if keyword not in split_text:
+				all_match = False
+		
+		if all_match:
+			matches.append("-".join(keyword_group))
 	return matches
 
 # Modularizing repeated logging code
@@ -124,6 +133,23 @@ def parseKinja():
 
 	logFoundDeals(relevant_deals, "Kinja")
 	return relevant_deals
+
+# Scrape r/outliermarket RSS feed for new posts
+# Return format: dictionary of {keyword: [Deal_objects]}
+def parseOutlierMarket():
+	feed = feedparser.parse(config["urls"]["outliermarket"])
+	
+	new_items = list(filter(lambda x: isValidDate(utcTimestampToDatetime(x["updated_parsed"])), feed["entries"]))
+	log("r/OutlierMarket has %d new posts" % len(new_items))
+
+	relevant_deals = defaultdict(list)
+	for item in new_items:
+		for matched_word in compareDeal(item["title"]):
+			relevant_deals[matched_word].append(Deal(matched_word, item["title"], item["link"]))
+
+	logFoundDeals(relevant_deals, "r/OutlierMarket")
+	return relevant_deals
+
 
 # Wirecutter doesn't have an RSS for deals, so we're gonna scrape their Twitter instead
 # Return format: dictionary of {keyword: [Deal_objects]}
@@ -193,7 +219,8 @@ def main():
 	
 	kinja_results = parseKinja()
 	wirecutter_results = parseWirecutter()
-	all_deals = mergeDictionaries([kinja_results, wirecutter_results]) 
+	outliermarket_results = parseOutlierMarket()
+	all_deals = mergeDictionaries([kinja_results, wirecutter_results, outliermarket_results]) 
 	notify(all_deals)	
 
 main()
