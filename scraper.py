@@ -134,20 +134,20 @@ def parseKinja():
 	logFoundDeals(relevant_deals, "Kinja")
 	return relevant_deals
 
-# Scrape r/outliermarket RSS feed for new posts
+# Scrape a subreddit's RSS feed for new posts
 # Return format: dictionary of {keyword: [Deal_objects]}
-def parseOutlierMarket():
-	feed = feedparser.parse(config["urls"]["outliermarket"])
+def parseSubreddit(url, sub_name):
+	feed = feedparser.parse(url)
 	
 	new_items = list(filter(lambda x: isValidDate(utcTimestampToDatetime(x["updated_parsed"])), feed["entries"]))
-	log("r/OutlierMarket has %d new posts" % len(new_items))
+	log("r/" + sub_name + " has %d new posts" % len(new_items))
 
 	relevant_deals = defaultdict(list)
 	for item in new_items:
 		for matched_word in compareDeal(item["title"]):
 			relevant_deals[matched_word].append(Deal(matched_word, item["title"], item["link"]))
 
-	logFoundDeals(relevant_deals, "r/OutlierMarket")
+	logFoundDeals(relevant_deals, "r/" + sub_name)
 	return relevant_deals
 
 
@@ -218,8 +218,8 @@ def main():
 	initEnvironment()
 	
 	kinja_results = parseKinja()
-	wirecutter_results = parseWirecutter()
-	outliermarket_results = parseOutlierMarket()
+	# wirecutter_results = parseWirecutter()
+	outliermarket_results = parseSubreddit(config["urls"]["outliermarket"], "OutlierMarket")
 	all_deals = mergeDictionaries([kinja_results, wirecutter_results, outliermarket_results]) 
 	notify(all_deals)	
 
