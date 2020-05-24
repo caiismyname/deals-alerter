@@ -218,7 +218,7 @@ def main():
 	initEnvironment()
 	
 	kinja_results = parseKinja()
-	# wirecutter_results = parseWirecutter()
+	wirecutter_results = parseWirecutter()
 	outliermarket_results = parseSubreddit(config["urls"]["outliermarket"], "OutlierMarket")
 	all_deals = mergeDictionaries([kinja_results, wirecutter_results, outliermarket_results]) 
 	notify(all_deals)	
